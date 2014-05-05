@@ -5,7 +5,7 @@ import (
     base "golearn/base"
     util "golearn/utilities"
     linearclass "golearn/linear"
-    //"fmt"
+    "fmt"
     )
 
 func main(){
@@ -14,5 +14,8 @@ func main(){
   newlabels := util.ConvertLabelsToFloat(labels)
   linear := linearclass.LinearRegressor{}
   linear.New("Testing", newlabels, data, rows, cols)
-  linear.Fit()
+  //line := linearclass.LinearParameters{}
+  line := linear.Fit()
+  fmt.Println("The slope of the line is:",line.Slope)
+  fmt.Println("The y intercept of the line is:",line.C)
 }

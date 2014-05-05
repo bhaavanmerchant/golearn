@@ -16,8 +16,8 @@ type LinearRegressor struct {
 
 //The parameters for the equation y = slope * x + c
 type LinearParameters struct {
-	slope float64
-	c float64
+	Slope float64
+	C float64
 }
 
 //Mints a new classifier.
@@ -42,7 +42,7 @@ func (LinearModel *LinearRegressor) Fit() LinearParameters{
 	}
 
 	coefficients := LinearParameters{}
-	coefficients.slope = ((float64(rows) * sumXY) - (sumX)*(sumY)) / ((float64(rows) * sumXSquared)-(sumX*sumX))
-	coefficients.c = (sumY - (coefficients.slope * sumX)) / float64(rows)
+	coefficients.Slope = ((float64(rows) * sumXY) - (sumX)*(sumY)) / ((float64(rows) * sumXSquared)-(sumX*sumX))
+	coefficients.C = (sumY - (coefficients.Slope * sumX)) / float64(rows)
 	return coefficients
 }
