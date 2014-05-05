@@ -5,7 +5,7 @@ import (
     base "golearn/base"
     util "golearn/utilities"
     linearclass "golearn/linear"
-    "fmt"
+    //"fmt"
     )
 
 func main(){
@@ -14,6 +14,5 @@ func main(){
   newlabels := util.ConvertLabelsToFloat(labels)
   linear := linearclass.LinearRegressor{}
   linear.New("Testing", newlabels, data, rows, cols)
-  fmt.Println(newlabels)
   linear.Fit()
 }

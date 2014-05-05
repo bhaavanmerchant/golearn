@@ -3,7 +3,7 @@ package linear
 import (
 		mat "github.com/skelterjohn/go.matrix"
 		//"math"
-		"fmt"
+		//"fmt"
 		//util "golearn/utilities"
 		base "golearn/base"
 		)
@@ -14,10 +14,9 @@ type LinearRegressor struct {
 	base.BaseRegressor
 }
 
-//The parameters for the equation xCoef * x + yCoef * y + c = 0
+//The parameters for the equation y = slope * x + c
 type LinearParameters struct {
-	xCoef float64
-	yCoef float64
+	slope float64
 	c float64
 }
 
@@ -31,12 +30,19 @@ func (LinearModel *LinearRegressor) New(name string, labels []float64, numbers [
 
 func (LinearModel *LinearRegressor) Fit() LinearParameters{
 	rows := LinearModel.Data.Rows()
-	rownumbers := make(map[int]float64)
-	//labels := make([]float64, 1)
-	//sum := 0.0
-	fmt.Println("Inside Regressor fit method")
-	fmt.Println(rows)
-	fmt.Println(rownumbers)
+	sumX, sumY, sumXSquared, sumXY := 0.0, 0.0, 0.0, 0.0
+
+
+	for i := 0; i < rows; i++{
+		row := LinearModel.Data.GetRowVector(i)
+		sumX += row.Array()[0]
+		sumY += row.Array()[1]
+		sumXSquared += row.Array()[0] * row.Array()[0]
+		sumXY += row.Array()[0] * row.Array()[1]
+	}
+
 	coefficients := LinearParameters{}
+	coefficients.slope = ((float64(rows) * sumXY) - (sumX)*(sumY)) / ((float64(rows) * sumXSquared)-(sumX*sumX))
+	coefficients.c = (sumY - (coefficients.slope * sumX)) / float64(rows)
 	return coefficients
 }
