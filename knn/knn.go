@@ -1,69 +1,79 @@
+// Package KNN implements a K Nearest Neighbors object, capable of both classification
+// and regression. It accepts data in the form of a slice of float64s, which are then reshaped
+// into a X by Y matrix.
 package knn
 
 import (
-		mat "github.com/skelterjohn/go.matrix"
-		"math"
-		"fmt"
-		util "golearn/utilities"
-		base "golearn/base"
-		)
+	"github.com/gonum/matrix/mat64"
+	base "github.com/sjwhitworth/golearn/base"
+	pairwiseMetrics "github.com/sjwhitworth/golearn/metrics/pairwise"
+	util "github.com/sjwhitworth/golearn/utilities"
+)
 
-//A KNN Classifier. Consists of a data matrix, associated labels in the same order as the matrix, and a name.
+// A KNN Classifier. Consists of a data matrix, associated labels in the same order as the matrix, and a distance function.
+// The accepted distance functions at this time are 'euclidean' and 'manhattan'.
 type KNNClassifier struct {
-	base.BaseClassifier
+	base.BaseEstimator
+	Labels       []string
+	DistanceFunc string
 }
 
-//Mints a new classifier.
-func (KNN *KNNClassifier) New(name string, labels []string, numbers []float64, x int, y int) {
-	
-	//Write in some error handling here
-	// if x != len(KNN.Labels) {
-	// 	return errors.New("KNN: There must be a label for each row")
-	// }
+// Returns a new classifier
+func NewKnnClassifier(distfunc string) *KNNClassifier {
+	KNN := KNNClassifier{}
+	KNN.DistanceFunc = distfunc
+	return &KNN
+}
 
-	KNN.Data = *mat.MakeDenseMatrix(numbers, x, y)
-	KNN.Name = name
+func (KNN *KNNClassifier) Fit(labels []string, numbers []float64, rows int, cols int) {
+	if rows != len(labels) {
+		panic(mat64.ErrShape)
+	}
+
+	KNN.Data = mat64.NewDense(rows, cols, numbers)
 	KNN.Labels = labels
 }
 
-//Computes the Euclidean distance between two vectors.
-func (KNN *KNNClassifier) ComputeDistance(vector *mat.DenseMatrix, testrow *mat.DenseMatrix) float64 {
-	var sum float64
+// Returns a classification for the vector, based on a vector input, using the KNN algorithm.
+// See http://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm.
+func (KNN *KNNClassifier) Predict(vector []float64, K int) string {
 
-	difference, err := testrow.MinusDense(vector)
-	flat := difference.Array()
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	for _, i := range flat {
-		squared := math.Pow(i, 2)
-		sum += squared
-	}
-
-	eucdistance := math.Sqrt(sum)
-	return eucdistance
-}
-
-//Returns a classification for the vector, based on a vector input, using the KNN algorithm.
-func (KNN *KNNClassifier) Predict(vector *mat.DenseMatrix, K int) (string, []int) {
-
-	rows := KNN.Data.Rows()
+	convertedVector := util.FloatsToMatrix(vector)
+	// Get the number of rows
+	rows, _ := KNN.Data.Dims()
 	rownumbers := make(map[int]float64)
 	labels := make([]string, 0)
 	maxmap := make(map[string]int)
 
-	for i := 0; i < rows; i++{
-		row := KNN.Data.GetRowVector(i)
-		eucdistance := KNN.ComputeDistance(row, vector)
-		rownumbers[i] = eucdistance
+	// Check what distance function we are using
+	switch KNN.DistanceFunc {
+	case "euclidean":
+		{
+			euclidean := pairwiseMetrics.NewEuclidean()
+			for i := 0; i < rows; i++ {
+				row := KNN.Data.RowView(i)
+				rowMat := util.FloatsToMatrix(row)
+				distance := euclidean.Distance(rowMat, convertedVector)
+				rownumbers[i] = distance
+			}
+		}
+	case "manhattan":
+		{
+			manhattan := pairwiseMetrics.NewEuclidean()
+			for i := 0; i < rows; i++ {
+				row := KNN.Data.RowView(i)
+				rowMat := util.FloatsToMatrix(row)
+				distance := manhattan.Distance(rowMat, convertedVector)
+				rownumbers[i] = distance
+			}
+		}
 	}
 
 	sorted := util.SortIntMap(rownumbers)
 	values := sorted[:K]
 
 	for _, elem := range values {
+		// It's when we access this map
 		labels = append(labels, KNN.Labels[elem])
 
 		if _, ok := maxmap[KNN.Labels[elem]]; ok {
@@ -76,5 +86,74 @@ func (KNN *KNNClassifier) Predict(vector *mat.DenseMatrix, K int) (string, []int
 	sortedlabels := util.SortStringMap(maxmap)
 	label := sortedlabels[0]
 
-	return label, values
+	return label
+}
+
+//A KNN Regressor. Consists of a data matrix, associated result variables in the same order as the matrix, and a name.
+type KNNRegressor struct {
+	base.BaseEstimator
+	Values       []float64
+	DistanceFunc string
+}
+
+// Mints a new classifier.
+func NewKnnRegressor(distfunc string) *KNNRegressor {
+	KNN := KNNRegressor{}
+	KNN.DistanceFunc = distfunc
+	return &KNN
+}
+
+func (KNN *KNNRegressor) Fit(values []float64, numbers []float64, rows int, cols int) {
+	if rows != len(values) {
+		panic(mat64.ErrShape)
+	}
+
+	KNN.Data = mat64.NewDense(rows, cols, numbers)
+	KNN.Values = values
+}
+
+//Returns an average of the K nearest labels/variables, based on a vector input.
+func (KNN *KNNRegressor) Predict(vector *mat64.Dense, K int) float64 {
+
+	// Get the number of rows
+	rows, _ := KNN.Data.Dims()
+	rownumbers := make(map[int]float64)
+	labels := make([]float64, 0)
+
+	// Check what distance function we are using
+	switch KNN.DistanceFunc {
+	case "euclidean":
+		{
+			euclidean := pairwiseMetrics.NewEuclidean()
+			for i := 0; i < rows; i++ {
+				row := KNN.Data.RowView(i)
+				rowMat := util.FloatsToMatrix(row)
+				distance := euclidean.Distance(rowMat, vector)
+				rownumbers[i] = distance
+			}
+		}
+	case "manhattan":
+		{
+			manhattan := pairwiseMetrics.NewEuclidean()
+			for i := 0; i < rows; i++ {
+				row := KNN.Data.RowView(i)
+				rowMat := util.FloatsToMatrix(row)
+				distance := manhattan.Distance(rowMat, vector)
+				rownumbers[i] = distance
+			}
+		}
+	}
+
+	sorted := util.SortIntMap(rownumbers)
+	values := sorted[:K]
+
+	var sum float64
+	for _, elem := range values {
+		value := KNN.Values[elem]
+		labels = append(labels, value)
+		sum += value
+	}
+
+	average := sum / float64(K)
+	return average
 }
